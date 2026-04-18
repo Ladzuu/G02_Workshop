@@ -1,18 +1,21 @@
 import * as THREE from "three";
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
 
 const body = document.querySelector('body');
 
 // Chemins vers nos modèles
 const models = {
-    ball: '/models/G0_DM_ball.gltf',
-    cube: '/models/G0_DM_cube.gltf',
-    exterieur: '/models/G0_SM_exterieur.gltf'
+    exterieur: '/models/outside/G2_exterieur_baked.gltf'
 };
 
 // LOADING
 const gltfLoader = new GLTFLoader();
+
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+gltfLoader.setDRACOLoader(dracoLoader);
 
 // Remplace les chemins de l'objet 'models'
 // par les scenes threejs chargées par gltfLoader
@@ -64,8 +67,8 @@ class Viewer {
         const deltaTime = (timestamp - previousTime) / 1000;
         previousTime = timestamp;
 
-        console.log(timestamp);
         this.mixer.update(deltaTime);
+        this.controls.update();
         this.render();
 
         window.requestAnimationFrame( ( timestamp ) => {
@@ -75,69 +78,15 @@ class Viewer {
 
     populate() {
 
-        this.scene.add( ...models.exterieur.scene.children );
-        this.scene.add( ...models.ball.scene.children );
-
-        // Rajoute chaque animation stockée dans les modèles
-        // pour les mettre dans notre objet "this.scene"
-        for( const key in models ){
-            for( const animation of models[ key ].animations ){
-                this.scene.animations.push( animation );
-            }
-        }
+        const model = models.exterieur.scene;
+        model.rotation.y = THREE.MathUtils.degToRad(270);
+        this.scene.add( model );
 
         const ambientLight = new THREE.AmbientLight( 'white', 1 );
         this.scene.add( ambientLight );
 
-        for( const mesh of this.scene.children ){
-            if( mesh.isMesh ){
-                console.log(mesh);
-                const meshMap = mesh.material.map;
-                let emissive = false;
-
-                if( mesh.name === "G0_fenetres" ){
-                    emissive = true;
-                }
-                
-                let newMaterial = null;
-
-                if( emissive ){
-                    newMaterial = new THREE.MeshLambertMaterial({
-                        map: meshMap,
-                        emissive: 'yellow',
-                        emissiveIntensity: .35,
-                        emissiveMap: meshMap
-                    });
-                } else {
-                    newMaterial = new THREE.MeshLambertMaterial({
-                        map: meshMap,
-                    });
-                }
-
-                // const newMaterial = new THREE.MeshLambertMaterial({
-                //     map: meshMap,
-                //     emissive: emissive ? 'gold' : null,
-                //     emissiveIntensity: emissive ? .3 : null,
-                //     emissiveMap: emissive ? meshMap : null
-
-                //     // emivisseMap: emissive
-                // });
-
-                mesh.material = newMaterial;
-
-            }
-        }
-
-        console.log( this.scene.animations);
-
-        const ball = this.scene.getObjectByName( 'G0_DM_ball' );
-        const mixer = new THREE.AnimationMixer( ball );
-        const clip = THREE.AnimationClip.findByName( this.scene.animations, 'roulade' );
-        const action = mixer.clipAction( clip );
-        action.play();
-
         // Je donne accès au mixer dans mon objet viewer
-        this.mixer = mixer;
+        this.mixer = new THREE.AnimationMixer( this.scene );
 
         window.requestAnimationFrame( ( timestamp ) => {
             this.animate2( timestamp );
@@ -178,9 +127,21 @@ class Viewer {
         );
 
         // Recule notre camera pour qu'on puisse voir le centre de la scene
+        this.camera.position.x = 10;
+        this.camera.position.y = 5;
         this.camera.position.z = 10;
 
+        // Orbit Control Settings
         this.controls = new OrbitControls( this.camera, this.renderer.domElement );
+        this.controls.enableDamping = true;
+        this.controls.enablePan = false;
+        this.controls.dampingFactor = 0.05;
+        this.controls.minPolarAngle = Math.PI / 2.5;
+        this.controls.maxPolarAngle = Math.PI / 2.5;
+        this.controls.minDistance = 10
+        this.controls.maxDistance = 25
+        this.controls.minAzimuthAngle = THREE.MathUtils.degToRad(0);
+        this.controls.maxAzimuthAngle = THREE.MathUtils.degToRad(90);
         this.controls.addEventListener( 'change', () => {
           this.render();
         } );

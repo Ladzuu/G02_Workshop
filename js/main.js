@@ -26546,401 +26546,6 @@ class MeshPhysicalMaterial extends MeshStandardMaterial {
 }
 
 /**
- * A material for non-shiny surfaces, without specular highlights.
- *
- * The material uses a non-physically based [Lambertian](https://en.wikipedia.org/wiki/Lambertian_reflectance)
- * model for calculating reflectance. This can simulate some surfaces (such
- * as untreated wood or stone) well, but cannot simulate shiny surfaces with
- * specular highlights (such as varnished wood). `MeshLambertMaterial` uses per-fragment
- * shading.
- *
- * Due to the simplicity of the reflectance and illumination models,
- * performance will be greater when using this material over the
- * {@link MeshPhongMaterial}, {@link MeshStandardMaterial} or
- * {@link MeshPhysicalMaterial}, at the cost of some graphical accuracy.
- *
- * @augments Material
- * @demo scenes/material-browser.html#MeshLambertMaterial
- */
-class MeshLambertMaterial extends Material {
-
-	/**
-	 * Constructs a new mesh lambert material.
-	 *
-	 * @param {Object} [parameters] - An object with one or more properties
-	 * defining the material's appearance. Any property of the material
-	 * (including any property from inherited materials) can be passed
-	 * in here. Color values can be passed any type of value accepted
-	 * by {@link Color#set}.
-	 */
-	constructor( parameters ) {
-
-		super();
-
-		/**
-		 * This flag can be used for type testing.
-		 *
-		 * @type {boolean}
-		 * @readonly
-		 * @default true
-		 */
-		this.isMeshLambertMaterial = true;
-
-		this.type = 'MeshLambertMaterial';
-
-		/**
-		 * Color of the material.
-		 *
-		 * @type {Color}
-		 * @default (1,1,1)
-		 */
-		this.color = new Color( 0xffffff ); // diffuse
-
-		/**
-		 * The color map. May optionally include an alpha channel, typically combined
-		 * with {@link Material#transparent} or {@link Material#alphaTest}. The texture map
-		 * color is modulated by the diffuse `color`.
-		 *
-		 * @type {?Texture}
-		 * @default null
-		 */
-		this.map = null;
-
-		/**
-		 * The light map. Requires a second set of UVs.
-		 *
-		 * @type {?Texture}
-		 * @default null
-		 */
-		this.lightMap = null;
-
-		/**
-		 * Intensity of the baked light.
-		 *
-		 * @type {number}
-		 * @default 1
-		 */
-		this.lightMapIntensity = 1.0;
-
-		/**
-		 * The red channel of this texture is used as the ambient occlusion map.
-		 * Requires a second set of UVs.
-		 *
-		 * @type {?Texture}
-		 * @default null
-		 */
-		this.aoMap = null;
-
-		/**
-		 * Intensity of the ambient occlusion effect. Range is `[0,1]`, where `0`
-		 * disables ambient occlusion. Where intensity is `1` and the AO map's
-		 * red channel is also `1`, ambient light is fully occluded on a surface.
-		 *
-		 * @type {number}
-		 * @default 1
-		 */
-		this.aoMapIntensity = 1.0;
-
-		/**
-		 * Emissive (light) color of the material, essentially a solid color
-		 * unaffected by other lighting.
-		 *
-		 * @type {Color}
-		 * @default (0,0,0)
-		 */
-		this.emissive = new Color( 0x000000 );
-
-		/**
-		 * Intensity of the emissive light. Modulates the emissive color.
-		 *
-		 * @type {number}
-		 * @default 1
-		 */
-		this.emissiveIntensity = 1.0;
-
-		/**
-		 * Set emissive (glow) map. The emissive map color is modulated by the
-		 * emissive color and the emissive intensity. If you have an emissive map,
-		 * be sure to set the emissive color to something other than black.
-		 *
-		 * @type {?Texture}
-		 * @default null
-		 */
-		this.emissiveMap = null;
-
-		/**
-		 * The texture to create a bump map. The black and white values map to the
-		 * perceived depth in relation to the lights. Bump doesn't actually affect
-		 * the geometry of the object, only the lighting. If a normal map is defined
-		 * this will be ignored.
-		 *
-		 * @type {?Texture}
-		 * @default null
-		 */
-		this.bumpMap = null;
-
-		/**
-		 * How much the bump map affects the material. Typical range is `[0,1]`.
-		 *
-		 * @type {number}
-		 * @default 1
-		 */
-		this.bumpScale = 1;
-
-		/**
-		 * The texture to create a normal map. The RGB values affect the surface
-		 * normal for each pixel fragment and change the way the color is lit. Normal
-		 * maps do not change the actual shape of the surface, only the lighting. In
-		 * case the material has a normal map authored using the left handed
-		 * convention, the `y` component of `normalScale` should be negated to compensate
-		 * for the different handedness.
-		 *
-		 * @type {?Texture}
-		 * @default null
-		 */
-		this.normalMap = null;
-
-		/**
-		 * The type of normal map.
-		 *
-		 * @type {(TangentSpaceNormalMap|ObjectSpaceNormalMap)}
-		 * @default TangentSpaceNormalMap
-		 */
-		this.normalMapType = TangentSpaceNormalMap;
-
-		/**
-		 * How much the normal map affects the material. Typical value range is `[0,1]`.
-		 *
-		 * @type {Vector2}
-		 * @default (1,1)
-		 */
-		this.normalScale = new Vector2( 1, 1 );
-
-		/**
-		 * The displacement map affects the position of the mesh's vertices. Unlike
-		 * other maps which only affect the light and shade of the material the
-		 * displaced vertices can cast shadows, block other objects, and otherwise
-		 * act as real geometry. The displacement texture is an image where the value
-		 * of each pixel (white being the highest) is mapped against, and
-		 * repositions, the vertices of the mesh.
-		 *
-		 * @type {?Texture}
-		 * @default null
-		 */
-		this.displacementMap = null;
-
-		/**
-		 * How much the displacement map affects the mesh (where black is no
-		 * displacement, and white is maximum displacement). Without a displacement
-		 * map set, this value is not applied.
-		 *
-		 * @type {number}
-		 * @default 0
-		 */
-		this.displacementScale = 1;
-
-		/**
-		 * The offset of the displacement map's values on the mesh's vertices.
-		 * The bias is added to the scaled sample of the displacement map.
-		 * Without a displacement map set, this value is not applied.
-		 *
-		 * @type {number}
-		 * @default 0
-		 */
-		this.displacementBias = 0;
-
-		/**
-		 * Specular map used by the material.
-		 *
-		 * @type {?Texture}
-		 * @default null
-		 */
-		this.specularMap = null;
-
-		/**
-		 * The alpha map is a grayscale texture that controls the opacity across the
-		 * surface (black: fully transparent; white: fully opaque).
-		 *
-		 * Only the color of the texture is used, ignoring the alpha channel if one
-		 * exists. For RGB and RGBA textures, the renderer will use the green channel
-		 * when sampling this texture due to the extra bit of precision provided for
-		 * green in DXT-compressed and uncompressed RGB 565 formats. Luminance-only and
-		 * luminance/alpha textures will also still work as expected.
-		 *
-		 * @type {?Texture}
-		 * @default null
-		 */
-		this.alphaMap = null;
-
-		/**
-		 * The environment map.
-		 *
-		 * @type {?Texture}
-		 * @default null
-		 */
-		this.envMap = null;
-
-		/**
-		 * The rotation of the environment map in radians.
-		 *
-		 * @type {Euler}
-		 * @default (0,0,0)
-		 */
-		this.envMapRotation = new Euler();
-
-		/**
-		 * How to combine the result of the surface's color with the environment map, if any.
-		 *
-		 * When set to `MixOperation`, the {@link MeshBasicMaterial#reflectivity} is used to
-		 * blend between the two colors.
-		 *
-		 * @type {(MultiplyOperation|MixOperation|AddOperation)}
-		 * @default MultiplyOperation
-		 */
-		this.combine = MultiplyOperation;
-
-		/**
-		 * How much the environment map affects the surface.
-		 * The valid range is between `0` (no reflections) and `1` (full reflections).
-		 *
-		 * @type {number}
-		 * @default 1
-		 */
-		this.reflectivity = 1;
-
-		/**
-		 * Scales the effect of the environment map by multiplying its color.
-		 *
-		 * @type {number}
-		 * @default 1
-		 */
-		this.envMapIntensity = 1.0;
-
-		/**
-		 * The index of refraction (IOR) of air (approximately 1) divided by the
-		 * index of refraction of the material. It is used with environment mapping
-		 * modes {@link CubeRefractionMapping} and {@link EquirectangularRefractionMapping}.
-		 * The refraction ratio should not exceed `1`.
-		 *
-		 * @type {number}
-		 * @default 0.98
-		 */
-		this.refractionRatio = 0.98;
-
-		/**
-		 * Renders the geometry as a wireframe.
-		 *
-		 * @type {boolean}
-		 * @default false
-		 */
-		this.wireframe = false;
-
-		/**
-		 * Controls the thickness of the wireframe.
-		 *
-		 * Can only be used with {@link SVGRenderer}.
-		 *
-		 * @type {number}
-		 * @default 1
-		 */
-		this.wireframeLinewidth = 1;
-
-		/**
-		 * Defines appearance of wireframe ends.
-		 *
-		 * Can only be used with {@link SVGRenderer}.
-		 *
-		 * @type {('round'|'bevel'|'miter')}
-		 * @default 'round'
-		 */
-		this.wireframeLinecap = 'round';
-
-		/**
-		 * Defines appearance of wireframe joints.
-		 *
-		 * Can only be used with {@link SVGRenderer}.
-		 *
-		 * @type {('round'|'bevel'|'miter')}
-		 * @default 'round'
-		 */
-		this.wireframeLinejoin = 'round';
-
-		/**
-		 * Whether the material is rendered with flat shading or not.
-		 *
-		 * @type {boolean}
-		 * @default false
-		 */
-		this.flatShading = false;
-
-		/**
-		 * Whether the material is affected by fog or not.
-		 *
-		 * @type {boolean}
-		 * @default true
-		 */
-		this.fog = true;
-
-		this.setValues( parameters );
-
-	}
-
-	copy( source ) {
-
-		super.copy( source );
-
-		this.color.copy( source.color );
-
-		this.map = source.map;
-
-		this.lightMap = source.lightMap;
-		this.lightMapIntensity = source.lightMapIntensity;
-
-		this.aoMap = source.aoMap;
-		this.aoMapIntensity = source.aoMapIntensity;
-
-		this.emissive.copy( source.emissive );
-		this.emissiveMap = source.emissiveMap;
-		this.emissiveIntensity = source.emissiveIntensity;
-
-		this.bumpMap = source.bumpMap;
-		this.bumpScale = source.bumpScale;
-
-		this.normalMap = source.normalMap;
-		this.normalMapType = source.normalMapType;
-		this.normalScale.copy( source.normalScale );
-
-		this.displacementMap = source.displacementMap;
-		this.displacementScale = source.displacementScale;
-		this.displacementBias = source.displacementBias;
-
-		this.specularMap = source.specularMap;
-
-		this.alphaMap = source.alphaMap;
-
-		this.envMap = source.envMap;
-		this.envMapRotation.copy( source.envMapRotation );
-		this.combine = source.combine;
-		this.reflectivity = source.reflectivity;
-		this.envMapIntensity = source.envMapIntensity;
-		this.refractionRatio = source.refractionRatio;
-
-		this.wireframe = source.wireframe;
-		this.wireframeLinewidth = source.wireframeLinewidth;
-		this.wireframeLinecap = source.wireframeLinecap;
-		this.wireframeLinejoin = source.wireframeLinejoin;
-
-		this.flatShading = source.flatShading;
-
-		this.fog = source.fog;
-
-		return this;
-
-	}
-
-}
-
-/**
  * A material for drawing geometry by depth. Depth is based off of the camera
  * near and far plane. White is nearest, black is farthest.
  *
@@ -62809,17 +62414,744 @@ function addPrimitiveAttributes( geometry, primitiveDef, parser ) {
 
 }
 
+const _taskCache = new WeakMap();
+
+/**
+ * A loader for the Draco format.
+ *
+ * [Draco](https://google.github.io/draco/) is an open source library for compressing
+ * and decompressing 3D meshes and point clouds. Compressed geometry can be significantly smaller,
+ * at the cost of additional decoding time on the client device.
+ *
+ * Standalone Draco files have a `.drc` extension, and contain vertex positions, normals, colors,
+ * and other attributes. Draco files do not contain materials, textures, animation, or node hierarchies –
+ * to use these features, embed Draco geometry inside of a glTF file. A normal glTF file can be converted
+ * to a Draco-compressed glTF file using [glTF-Pipeline](https://github.com/CesiumGS/gltf-pipeline).
+ * When using Draco with glTF, an instance of `DRACOLoader` will be used internally by {@link GLTFLoader}.
+ *
+ * It is recommended to create one DRACOLoader instance and reuse it to avoid loading and creating
+ * multiple decoder instances.
+ *
+ * `DRACOLoader` will automatically use either the JS or the WASM decoding library, based on
+ * browser capabilities.
+ *
+ * ```js
+ * const loader = new DRACOLoader();
+ * loader.setDecoderPath( '/examples/jsm/libs/draco/' );
+ *
+ * const geometry = await dracoLoader.loadAsync( 'models/draco/bunny.drc' );
+ * geometry.computeVertexNormals(); // optional
+ *
+ * dracoLoader.dispose();
+ * ```
+ *
+ * @augments Loader
+ * @three_import import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+ */
+class DRACOLoader extends Loader {
+
+	/**
+	 * Constructs a new Draco loader.
+	 *
+	 * @param {LoadingManager} [manager] - The loading manager.
+	 */
+	constructor( manager ) {
+
+		super( manager );
+
+		this.decoderPath = '';
+		this.decoderConfig = {};
+		this.decoderBinary = null;
+		this.decoderPending = null;
+
+		this.workerLimit = 4;
+		this.workerPool = [];
+		this.workerNextTaskID = 1;
+		this.workerSourceURL = '';
+
+		this.defaultAttributeIDs = {
+			position: 'POSITION',
+			normal: 'NORMAL',
+			color: 'COLOR',
+			uv: 'TEX_COORD'
+		};
+		this.defaultAttributeTypes = {
+			position: 'Float32Array',
+			normal: 'Float32Array',
+			color: 'Float32Array',
+			uv: 'Float32Array'
+		};
+
+	}
+
+	/**
+	 * Provides configuration for the decoder libraries. Configuration cannot be changed after decoding begins.
+	 *
+	 * @param {string} path - The decoder path.
+	 * @return {DRACOLoader} A reference to this loader.
+	 */
+	setDecoderPath( path ) {
+
+		this.decoderPath = path;
+
+		return this;
+
+	}
+
+	/**
+	 * Provides configuration for the decoder libraries. Configuration cannot be changed after decoding begins.
+	 *
+	 * @param {{type:('js'|'wasm')}} config - The decoder config.
+	 * @return {DRACOLoader} A reference to this loader.
+	 */
+	setDecoderConfig( config ) {
+
+		this.decoderConfig = config;
+
+		return this;
+
+	}
+
+	/**
+	 * Sets the maximum number of Web Workers to be used during decoding.
+	 * A lower limit may be preferable if workers are also for other tasks in the application.
+	 *
+	 * @param {number} workerLimit - The worker limit.
+	 * @return {DRACOLoader} A reference to this loader.
+	 */
+	setWorkerLimit( workerLimit ) {
+
+		this.workerLimit = workerLimit;
+
+		return this;
+
+	}
+
+	/**
+	 * Starts loading from the given URL and passes the loaded Draco asset
+	 * to the `onLoad()` callback.
+	 *
+	 * @param {string} url - The path/URL of the file to be loaded. This can also be a data URI.
+	 * @param {function(BufferGeometry)} onLoad - Executed when the loading process has been finished.
+	 * @param {onProgressCallback} onProgress - Executed while the loading is in progress.
+	 * @param {onErrorCallback} onError - Executed when errors occur.
+	 */
+	load( url, onLoad, onProgress, onError ) {
+
+		const loader = new FileLoader( this.manager );
+
+		loader.setPath( this.path );
+		loader.setResponseType( 'arraybuffer' );
+		loader.setRequestHeader( this.requestHeader );
+		loader.setWithCredentials( this.withCredentials );
+
+		loader.load( url, ( buffer ) => {
+
+			this.parse( buffer, onLoad, onError );
+
+		}, onProgress, onError );
+
+	}
+
+	/**
+	 * Parses the given Draco data.
+	 *
+	 * @param {ArrayBuffer} buffer - The raw Draco data as an array buffer.
+	 * @param {function(BufferGeometry)} onLoad - Executed when the loading/parsing process has been finished.
+	 * @param {onErrorCallback} onError - Executed when errors occur.
+	 */
+	parse( buffer, onLoad, onError = ()=>{} ) {
+
+		this.decodeDracoFile( buffer, onLoad, null, null, SRGBColorSpace, onError ).catch( onError );
+
+	}
+
+	//
+
+	decodeDracoFile( buffer, callback, attributeIDs, attributeTypes, vertexColorSpace = LinearSRGBColorSpace, onError = () => {} ) {
+
+		const taskConfig = {
+			attributeIDs: attributeIDs || this.defaultAttributeIDs,
+			attributeTypes: attributeTypes || this.defaultAttributeTypes,
+			useUniqueIDs: !! attributeIDs,
+			vertexColorSpace: vertexColorSpace,
+		};
+
+		return this.decodeGeometry( buffer, taskConfig ).then( callback ).catch( onError );
+
+	}
+
+	decodeGeometry( buffer, taskConfig ) {
+
+		const taskKey = JSON.stringify( taskConfig );
+
+		// Check for an existing task using this buffer. A transferred buffer cannot be transferred
+		// again from this thread.
+		if ( _taskCache.has( buffer ) ) {
+
+			const cachedTask = _taskCache.get( buffer );
+
+			if ( cachedTask.key === taskKey ) {
+
+				return cachedTask.promise;
+
+			} else if ( buffer.byteLength === 0 ) {
+
+				// Technically, it would be possible to wait for the previous task to complete,
+				// transfer the buffer back, and decode again with the second configuration. That
+				// is complex, and I don't know of any reason to decode a Draco buffer twice in
+				// different ways, so this is left unimplemented.
+				throw new Error(
+
+					'THREE.DRACOLoader: Unable to re-decode a buffer with different ' +
+					'settings. Buffer has already been transferred.'
+
+				);
+
+			}
+
+		}
+
+		//
+
+		let worker;
+		const taskID = this.workerNextTaskID ++;
+		const taskCost = buffer.byteLength;
+
+		// Obtain a worker and assign a task, and construct a geometry instance
+		// when the task completes.
+		const geometryPending = this._getWorker( taskID, taskCost )
+			.then( ( _worker ) => {
+
+				worker = _worker;
+
+				return new Promise( ( resolve, reject ) => {
+
+					worker._callbacks[ taskID ] = { resolve, reject };
+
+					worker.postMessage( { type: 'decode', id: taskID, taskConfig, buffer }, [ buffer ] );
+
+					// this.debug();
+
+				} );
+
+			} )
+			.then( ( message ) => this._createGeometry( message.geometry ) );
+
+		// Remove task from the task list.
+		// Note: replaced '.finally()' with '.catch().then()' block - iOS 11 support (#19416)
+		geometryPending
+			.catch( () => true )
+			.then( () => {
+
+				if ( worker && taskID ) {
+
+					this._releaseTask( worker, taskID );
+
+					// this.debug();
+
+				}
+
+			} );
+
+		// Cache the task result.
+		_taskCache.set( buffer, {
+
+			key: taskKey,
+			promise: geometryPending
+
+		} );
+
+		return geometryPending;
+
+	}
+
+	_createGeometry( geometryData ) {
+
+		const geometry = new BufferGeometry();
+
+		if ( geometryData.index ) {
+
+			geometry.setIndex( new BufferAttribute( geometryData.index.array, 1 ) );
+
+		}
+
+		for ( let i = 0; i < geometryData.attributes.length; i ++ ) {
+
+			const { name, array, itemSize, stride, vertexColorSpace } = geometryData.attributes[ i ];
+
+			let attribute;
+
+			if ( itemSize === stride ) {
+
+				attribute = new BufferAttribute( array, itemSize );
+
+			} else {
+
+				const buffer = new InterleavedBuffer( array, stride );
+
+				attribute = new InterleavedBufferAttribute( buffer, itemSize, 0 );
+
+			}
+
+			if ( name === 'color' ) {
+
+				this._assignVertexColorSpace( attribute, vertexColorSpace );
+
+				attribute.normalized = ( array instanceof Float32Array ) === false;
+
+			}
+
+			geometry.setAttribute( name, attribute );
+
+		}
+
+		return geometry;
+
+	}
+
+	_assignVertexColorSpace( attribute, inputColorSpace ) {
+
+		// While .drc files do not specify colorspace, the only 'official' tooling
+		// is PLY and OBJ converters, which use sRGB. We'll assume sRGB when a .drc
+		// file is passed into .load() or .parse(). GLTFLoader uses internal APIs
+		// to decode geometry, and vertex colors are already Linear-sRGB in there.
+
+		if ( inputColorSpace !== SRGBColorSpace ) return;
+
+		const _color = new Color();
+
+		for ( let i = 0, il = attribute.count; i < il; i ++ ) {
+
+			_color.fromBufferAttribute( attribute, i );
+			ColorManagement.colorSpaceToWorking( _color, SRGBColorSpace );
+			attribute.setXYZ( i, _color.r, _color.g, _color.b );
+
+		}
+
+	}
+
+	_loadLibrary( url, responseType ) {
+
+		const loader = new FileLoader( this.manager );
+		loader.setPath( this.decoderPath );
+		loader.setResponseType( responseType );
+		loader.setWithCredentials( this.withCredentials );
+
+		return new Promise( ( resolve, reject ) => {
+
+			loader.load( url, resolve, undefined, reject );
+
+		} );
+
+	}
+
+	preload() {
+
+		this._initDecoder();
+
+		return this;
+
+	}
+
+	_initDecoder() {
+
+		if ( this.decoderPending ) return this.decoderPending;
+
+		const useJS = typeof WebAssembly !== 'object' || this.decoderConfig.type === 'js';
+		const librariesPending = [];
+
+		if ( useJS ) {
+
+			librariesPending.push( this._loadLibrary( 'draco_decoder.js', 'text' ) );
+
+		} else {
+
+			librariesPending.push( this._loadLibrary( 'draco_wasm_wrapper.js', 'text' ) );
+			librariesPending.push( this._loadLibrary( 'draco_decoder.wasm', 'arraybuffer' ) );
+
+		}
+
+		this.decoderPending = Promise.all( librariesPending )
+			.then( ( libraries ) => {
+
+				const jsContent = libraries[ 0 ];
+
+				if ( ! useJS ) {
+
+					this.decoderConfig.wasmBinary = libraries[ 1 ];
+
+				}
+
+				const fn = DRACOWorker.toString();
+
+				const body = [
+					'/* draco decoder */',
+					jsContent,
+					'',
+					'/* worker */',
+					fn.substring( fn.indexOf( '{' ) + 1, fn.lastIndexOf( '}' ) )
+				].join( '\n' );
+
+				this.workerSourceURL = URL.createObjectURL( new Blob( [ body ] ) );
+
+			} );
+
+		return this.decoderPending;
+
+	}
+
+	_getWorker( taskID, taskCost ) {
+
+		return this._initDecoder().then( () => {
+
+			if ( this.workerPool.length < this.workerLimit ) {
+
+				const worker = new Worker( this.workerSourceURL );
+
+				worker._callbacks = {};
+				worker._taskCosts = {};
+				worker._taskLoad = 0;
+
+				worker.postMessage( { type: 'init', decoderConfig: this.decoderConfig } );
+
+				worker.onmessage = function ( e ) {
+
+					const message = e.data;
+
+					switch ( message.type ) {
+
+						case 'decode':
+							worker._callbacks[ message.id ].resolve( message );
+							break;
+
+						case 'error':
+							worker._callbacks[ message.id ].reject( message );
+							break;
+
+						default:
+							console.error( 'THREE.DRACOLoader: Unexpected message, "' + message.type + '"' );
+
+					}
+
+				};
+
+				this.workerPool.push( worker );
+
+			} else {
+
+				this.workerPool.sort( function ( a, b ) {
+
+					return a._taskLoad > b._taskLoad ? -1 : 1;
+
+				} );
+
+			}
+
+			const worker = this.workerPool[ this.workerPool.length - 1 ];
+			worker._taskCosts[ taskID ] = taskCost;
+			worker._taskLoad += taskCost;
+			return worker;
+
+		} );
+
+	}
+
+	_releaseTask( worker, taskID ) {
+
+		worker._taskLoad -= worker._taskCosts[ taskID ];
+		delete worker._callbacks[ taskID ];
+		delete worker._taskCosts[ taskID ];
+
+	}
+
+	debug() {
+
+		console.log( 'Task load: ', this.workerPool.map( ( worker ) => worker._taskLoad ) );
+
+	}
+
+	dispose() {
+
+		for ( let i = 0; i < this.workerPool.length; ++ i ) {
+
+			this.workerPool[ i ].terminate();
+
+		}
+
+		this.workerPool.length = 0;
+
+		if ( this.workerSourceURL !== '' ) {
+
+			URL.revokeObjectURL( this.workerSourceURL );
+
+		}
+
+		return this;
+
+	}
+
+}
+
+/* WEB WORKER */
+
+function DRACOWorker() {
+
+	let decoderConfig;
+	let decoderPending;
+
+	onmessage = function ( e ) {
+
+		const message = e.data;
+
+		switch ( message.type ) {
+
+			case 'init':
+				decoderConfig = message.decoderConfig;
+				decoderPending = new Promise( function ( resolve/*, reject*/ ) {
+
+					decoderConfig.onModuleLoaded = function ( draco ) {
+
+						// Module is Promise-like. Wrap before resolving to avoid loop.
+						resolve( { draco: draco } );
+
+					};
+
+					DracoDecoderModule( decoderConfig ); // eslint-disable-line no-undef
+
+				} );
+				break;
+
+			case 'decode':
+				const buffer = message.buffer;
+				const taskConfig = message.taskConfig;
+				decoderPending.then( ( module ) => {
+
+					const draco = module.draco;
+					const decoder = new draco.Decoder();
+
+					try {
+
+						const geometry = decodeGeometry( draco, decoder, new Int8Array( buffer ), taskConfig );
+
+						const buffers = geometry.attributes.map( ( attr ) => attr.array.buffer );
+
+						if ( geometry.index ) buffers.push( geometry.index.array.buffer );
+
+						self.postMessage( { type: 'decode', id: message.id, geometry }, buffers );
+
+					} catch ( error ) {
+
+						console.error( error );
+
+						self.postMessage( { type: 'error', id: message.id, error: error.message } );
+
+					} finally {
+
+						draco.destroy( decoder );
+
+					}
+
+				} );
+				break;
+
+		}
+
+	};
+
+	function decodeGeometry( draco, decoder, array, taskConfig ) {
+
+		const attributeIDs = taskConfig.attributeIDs;
+		const attributeTypes = taskConfig.attributeTypes;
+
+		let dracoGeometry;
+		let decodingStatus;
+
+		const geometryType = decoder.GetEncodedGeometryType( array );
+
+		if ( geometryType === draco.TRIANGULAR_MESH ) {
+
+			dracoGeometry = new draco.Mesh();
+			decodingStatus = decoder.DecodeArrayToMesh( array, array.byteLength, dracoGeometry );
+
+		} else if ( geometryType === draco.POINT_CLOUD ) {
+
+			dracoGeometry = new draco.PointCloud();
+			decodingStatus = decoder.DecodeArrayToPointCloud( array, array.byteLength, dracoGeometry );
+
+		} else {
+
+			throw new Error( 'THREE.DRACOLoader: Unexpected geometry type.' );
+
+		}
+
+		if ( ! decodingStatus.ok() || dracoGeometry.ptr === 0 ) {
+
+			throw new Error( 'THREE.DRACOLoader: Decoding failed: ' + decodingStatus.error_msg() );
+
+		}
+
+		const geometry = { index: null, attributes: [] };
+
+		// Gather all vertex attributes.
+		for ( const attributeName in attributeIDs ) {
+
+			const attributeType = self[ attributeTypes[ attributeName ] ];
+
+			let attribute;
+			let attributeID;
+
+			// A Draco file may be created with default vertex attributes, whose attribute IDs
+			// are mapped 1:1 from their semantic name (POSITION, NORMAL, ...). Alternatively,
+			// a Draco file may contain a custom set of attributes, identified by known unique
+			// IDs. glTF files always do the latter, and `.drc` files typically do the former.
+			if ( taskConfig.useUniqueIDs ) {
+
+				attributeID = attributeIDs[ attributeName ];
+				attribute = decoder.GetAttributeByUniqueId( dracoGeometry, attributeID );
+
+			} else {
+
+				attributeID = decoder.GetAttributeId( dracoGeometry, draco[ attributeIDs[ attributeName ] ] );
+
+				if ( attributeID === -1 ) continue;
+
+				attribute = decoder.GetAttribute( dracoGeometry, attributeID );
+
+			}
+
+			const attributeResult = decodeAttribute( draco, decoder, dracoGeometry, attributeName, attributeType, attribute );
+
+			if ( attributeName === 'color' ) {
+
+				attributeResult.vertexColorSpace = taskConfig.vertexColorSpace;
+
+			}
+
+			geometry.attributes.push( attributeResult );
+
+		}
+
+		// Add index.
+		if ( geometryType === draco.TRIANGULAR_MESH ) {
+
+			geometry.index = decodeIndex( draco, decoder, dracoGeometry );
+
+		}
+
+		draco.destroy( dracoGeometry );
+
+		return geometry;
+
+	}
+
+	function decodeIndex( draco, decoder, dracoGeometry ) {
+
+		const numFaces = dracoGeometry.num_faces();
+		const numIndices = numFaces * 3;
+		const byteLength = numIndices * 4;
+
+		const ptr = draco._malloc( byteLength );
+		decoder.GetTrianglesUInt32Array( dracoGeometry, byteLength, ptr );
+		const index = new Uint32Array( draco.HEAPF32.buffer, ptr, numIndices ).slice();
+		draco._free( ptr );
+
+		return { array: index, itemSize: 1 };
+
+	}
+
+	function decodeAttribute( draco, decoder, dracoGeometry, attributeName, TypedArray, attribute ) {
+
+		const count = dracoGeometry.num_points();
+		const itemSize = attribute.num_components();
+		const dracoDataType = getDracoDataType( draco, TypedArray );
+
+		// Reference: https://registry.khronos.org/glTF/specs/2.0/glTF-2.0.html#data-alignment
+		const srcByteStride = itemSize * TypedArray.BYTES_PER_ELEMENT;
+		const dstByteStride = Math.ceil( srcByteStride / 4 ) * 4;
+
+		const dstStride = dstByteStride / TypedArray.BYTES_PER_ELEMENT;
+
+		const srcByteLength = count * srcByteStride;
+		const dstByteLength = count * dstByteStride;
+
+		const ptr = draco._malloc( srcByteLength );
+		decoder.GetAttributeDataArrayForAllPoints( dracoGeometry, attribute, dracoDataType, srcByteLength, ptr );
+
+		const srcArray = new TypedArray( draco.HEAPF32.buffer, ptr, srcByteLength / TypedArray.BYTES_PER_ELEMENT );
+		let dstArray;
+
+		if ( srcByteStride === dstByteStride ) {
+
+			// THREE.BufferAttribute
+
+			dstArray = srcArray.slice();
+
+		} else {
+
+			// THREE.InterleavedBufferAttribute
+
+			dstArray = new TypedArray( dstByteLength / TypedArray.BYTES_PER_ELEMENT );
+
+			let dstOffset = 0;
+
+			for ( let i = 0, il = srcArray.length; i < il; i ++ ) {
+
+				for ( let j = 0; j < itemSize; j ++ ) {
+
+					dstArray[ dstOffset + j ] = srcArray[ i * itemSize + j ];
+
+				}
+
+				dstOffset += dstStride;
+
+			}
+
+		}
+
+		draco._free( ptr );
+
+		return {
+			name: attributeName,
+			count: count,
+			itemSize: itemSize,
+			array: dstArray,
+			stride: dstStride
+		};
+
+	}
+
+	function getDracoDataType( draco, TypedArray ) {
+
+		switch ( TypedArray ) {
+
+			case Float32Array: return draco.DT_FLOAT32;
+			case Int8Array: return draco.DT_INT8;
+			case Int16Array: return draco.DT_INT16;
+			case Int32Array: return draco.DT_INT32;
+			case Uint8Array: return draco.DT_UINT8;
+			case Uint16Array: return draco.DT_UINT16;
+			case Uint32Array: return draco.DT_UINT32;
+
+		}
+
+	}
+
+}
+
 const body = document.querySelector('body');
 
 // Chemins vers nos modèles
 const models = {
-    ball: '/models/G0_DM_ball.gltf',
-    cube: '/models/G0_DM_cube.gltf',
-    exterieur: '/models/G0_SM_exterieur.gltf'
+    exterieur: '/models/outside/G2_exterieur_baked.gltf'
 };
 
 // LOADING
 const gltfLoader = new GLTFLoader();
+
+const dracoLoader = new DRACOLoader();
+dracoLoader.setDecoderPath('https://www.gstatic.com/draco/v1/decoders/');
+gltfLoader.setDRACOLoader(dracoLoader);
 
 // Remplace les chemins de l'objet 'models'
 // par les scenes threejs chargées par gltfLoader
@@ -62870,8 +63202,8 @@ class Viewer {
         const deltaTime = (timestamp - previousTime) / 1000;
         previousTime = timestamp;
 
-        console.log(timestamp);
         this.mixer.update(deltaTime);
+        this.controls.update();
         this.render();
 
         window.requestAnimationFrame( ( timestamp ) => {
@@ -62881,69 +63213,15 @@ class Viewer {
 
     populate() {
 
-        this.scene.add( ...models.exterieur.scene.children );
-        this.scene.add( ...models.ball.scene.children );
-
-        // Rajoute chaque animation stockée dans les modèles
-        // pour les mettre dans notre objet "this.scene"
-        for( const key in models ){
-            for( const animation of models[ key ].animations ){
-                this.scene.animations.push( animation );
-            }
-        }
+        const model = models.exterieur.scene;
+        model.rotation.y = MathUtils.degToRad(270);
+        this.scene.add( model );
 
         const ambientLight = new AmbientLight( 'white', 1 );
         this.scene.add( ambientLight );
 
-        for( const mesh of this.scene.children ){
-            if( mesh.isMesh ){
-                console.log(mesh);
-                const meshMap = mesh.material.map;
-                let emissive = false;
-
-                if( mesh.name === "G0_fenetres" ){
-                    emissive = true;
-                }
-                
-                let newMaterial = null;
-
-                if( emissive ){
-                    newMaterial = new MeshLambertMaterial({
-                        map: meshMap,
-                        emissive: 'yellow',
-                        emissiveIntensity: .35,
-                        emissiveMap: meshMap
-                    });
-                } else {
-                    newMaterial = new MeshLambertMaterial({
-                        map: meshMap,
-                    });
-                }
-
-                // const newMaterial = new THREE.MeshLambertMaterial({
-                //     map: meshMap,
-                //     emissive: emissive ? 'gold' : null,
-                //     emissiveIntensity: emissive ? .3 : null,
-                //     emissiveMap: emissive ? meshMap : null
-
-                //     // emivisseMap: emissive
-                // });
-
-                mesh.material = newMaterial;
-
-            }
-        }
-
-        console.log( this.scene.animations);
-
-        const ball = this.scene.getObjectByName( 'G0_DM_ball' );
-        const mixer = new AnimationMixer( ball );
-        const clip = AnimationClip.findByName( this.scene.animations, 'roulade' );
-        const action = mixer.clipAction( clip );
-        action.play();
-
         // Je donne accès au mixer dans mon objet viewer
-        this.mixer = mixer;
+        this.mixer = new AnimationMixer( this.scene );
 
         window.requestAnimationFrame( ( timestamp ) => {
             this.animate2( timestamp );
@@ -62984,9 +63262,21 @@ class Viewer {
         );
 
         // Recule notre camera pour qu'on puisse voir le centre de la scene
+        this.camera.position.x = 10;
+        this.camera.position.y = 5;
         this.camera.position.z = 10;
 
+        // Orbit Control Settings
         this.controls = new OrbitControls( this.camera, this.renderer.domElement );
+        this.controls.enableDamping = true;
+        this.controls.enablePan = false;
+        this.controls.dampingFactor = 0.05;
+        this.controls.minPolarAngle = Math.PI / 2.5;
+        this.controls.maxPolarAngle = Math.PI / 2.5;
+        this.controls.minDistance = 10;
+        this.controls.maxDistance = 25;
+        this.controls.minAzimuthAngle = MathUtils.degToRad(0);
+        this.controls.maxAzimuthAngle = MathUtils.degToRad(90);
         this.controls.addEventListener( 'change', () => {
           this.render();
         } );
