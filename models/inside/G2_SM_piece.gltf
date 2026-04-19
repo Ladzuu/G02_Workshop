@@ -84,7 +84,7 @@
 		{
 			"mimeType":"image/webp",
 			"name":"G2_SM_piece.webp",
-			"uri":"texture/G2_SM_piece_webp.webp"
+			"uri":"tex/G2_SM_piece_webp.webp"
 		}
 	],
 	"accessors":[

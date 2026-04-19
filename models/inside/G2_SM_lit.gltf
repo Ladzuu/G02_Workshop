@@ -98,7 +98,7 @@
 		{
 			"mimeType":"image/webp",
 			"name":"G2_SM_lit.webp",
-			"uri":"texture/G2_SM_lit_webp.webp"
+			"uri":"tex/G2_SM_lit_webp.webp"
 		}
 	],
 	"accessors":[

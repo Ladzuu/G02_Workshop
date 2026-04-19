@@ -89,7 +89,7 @@
 		{
 			"mimeType":"image/webp",
 			"name":"G2_DM_avatar_combined.webp",
-			"uri":"texture/G2_DM_avatar_combined_webp.webp"
+			"uri":"tex/G2_DM_avatar_combined_webp.webp"
 		}
 	],
 	"accessors":[
