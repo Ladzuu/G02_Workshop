@@ -2,6 +2,7 @@ import * as THREE from "three";
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/addons/loaders/DRACOLoader.js';
+import gsap from "gsap";
 
 const body = document.querySelector('body');
 
@@ -33,7 +34,8 @@ const models = {
     fenetrePlafonier: '/models/inside/G2_SM_fenetreplafonier_combined.gltf',
     lit: '/models/inside/G2_SM_lit.gltf',
     porteTapispanier: '/models/inside/G2_SM_portetapispanier_combined.gltf',
-    posterBall: '/models/inside/G2_SM_posterball_combined.gltf'
+    posterBall: '/models/inside/G2_SM_posterball_combined.gltf',
+    boitePinceaux: '/models/inside/G2_DM_pinceau.gltf'
 };
 
 // LOADING
@@ -96,6 +98,8 @@ class Viewer {
         this.scene.add( model );
         this.currentModel = model;
 
+        // console.log(models)
+
         const ambientLight = new THREE.AmbientLight( 'white', 1 );
         this.scene.add( ambientLight );
 
@@ -119,7 +123,7 @@ class Viewer {
         // Modèles pièce intérieur
         this.interiorModels = [];
         const interiorModelItems = [
-            'interieur', 'avatar1', 'avatar2', 'avatar3', 'avatar4', 'cadre', 'cartons1', 'cartons2', 'cartons3', 'cartons4', 'cartons5', 'cartons6', 'cartons7', 'lampeFusee', 'lecteurCd', 'petitTrain', 'skate', 'armoirCarre', 'armoir', 'bureau', 'chaiseCoffre', 'chevetEtager', 'fenetrePlafonier', 'lit', 'porteTapispanier', 'posterBall'
+            'interieur', 'avatar1', 'avatar2', 'avatar3', 'avatar4', 'cadre', 'cartons1', 'cartons2', 'cartons3', 'cartons4', 'cartons5', 'cartons6', 'cartons7', 'lampeFusee', 'lecteurCd', 'petitTrain', 'skate', 'armoirCarre', 'armoir', 'bureau', 'chaiseCoffre', 'chevetEtager', 'fenetrePlafonier', 'lit', 'porteTapispanier', 'posterBall', 'boitePinceaux'
         ];
 
         interiorModelItems.forEach(item => {
@@ -129,18 +133,74 @@ class Viewer {
             this.interiorModels.push(model);
         });
 
-        this.camera.position.set(1, 0, 1);
+        this.camera.position.set(1, 0.5, 1);
 
         this.controls.enablePan = true;
         this.controls.minDistance = 1;
-        this.controls.maxDistance = 1;
+        this.controls.maxDistance = 10;
         this.controls.minPolarAngle = 0;
         this.controls.maxPolarAngle = Math.PI;
         this.controls.minAzimuthAngle = -Infinity;
         this.controls.maxAzimuthAngle = Infinity;
 
+        // Targets des items
+        const targetsGeometry = new THREE.BoxGeometry(0.25, 0.25, 0.25);
+        const targetsMaterial = new THREE.MeshStandardMaterial({ color: 0xffffff, visible: false });
+
+        const targetLampe = new THREE.Mesh(targetsGeometry, targetsMaterial);
+        const targetTrain = new THREE.Mesh(targetsGeometry, targetsMaterial);
+        const targetLecteur = new THREE.Mesh(targetsGeometry, targetsMaterial);
+        const targetPoster = new THREE.Mesh(targetsGeometry, targetsMaterial);
+        const targetSkate = new THREE.Mesh(targetsGeometry, targetsMaterial);
+        const targetBoite = new THREE.Mesh(targetsGeometry, targetsMaterial);
+        targetLampe.position.set(-1.5, -0.75, 0.45);
+        targetTrain.position.set(-1.5, -0.15, 0.45);
+        targetLecteur.position.set(-1.45, -0.6, -0.45);
+        targetPoster.position.set(1.6, -0.4, -0.55);
+        targetSkate.position.set(0.8, -1.4, -1.4);
+        targetBoite.position.set(-1.45, -0.6, -1.2);
+
+        this.scene.add(targetLampe, targetTrain, targetLecteur, targetPoster, targetSkate, targetBoite);
+
+        // Targets position des cameras
+        const targetsCamMaterial = new THREE.MeshStandardMaterial({ color: 0xFF7E46 });
+
+        const targetCamLampe = new THREE.Mesh(targetsGeometry, targetsCamMaterial);
+        const targetCamTrain = new THREE.Mesh(targetsGeometry, targetsCamMaterial);
+        const targetCamLecteur = new THREE.Mesh(targetsGeometry, targetsCamMaterial);
+        const targetCamPoster = new THREE.Mesh(targetsGeometry, targetsCamMaterial);
+        const targetCamSkate = new THREE.Mesh(targetsGeometry, targetsCamMaterial);
+        const targetCamBoite = new THREE.Mesh(targetsGeometry, targetsCamMaterial);
+        targetCamLampe.position.set(0, -0.75, 0.45);
+        targetCamTrain.position.set(0, -0.15, 0.45);
+        targetCamLecteur.position.set(0, -0.6, -0.2);
+        targetCamPoster.position.set(0, -0.4, -0.55);
+        targetCamSkate.position.set(0, -0.5, -0.5)
+        targetCamBoite.position.set(-0.5, 0.5, -1);
+
+        this.scene.add(targetCamLampe, targetCamTrain, targetCamLecteur, targetCamBoite, targetCamPoster, targetCamSkate);
+
+        this.cameraTargets = [targetCamLampe, targetCamTrain, targetCamLecteur, targetCamPoster, targetCamSkate, targetCamBoite];
+        this.currentTargetIndex = 0;
+        this.lookTargets = [targetLampe.position, targetTrain.position, targetLecteur.position, targetPoster.position, targetSkate.position, targetBoite.position];
+
         // Mettre à jour le mixer pour la nouvelle scène
         this.mixer = new THREE.AnimationMixer(this.scene);
+
+        // Navigation des cameras
+        const navCamera = document.querySelector('.navCamera');
+        if (navCamera) {
+            navCamera.classList.add('isVisible');
+        }
+
+        const arrowLeft = document.querySelector('.navArrow--left');
+        const arrowRight = document.querySelector('.navArrow--right');
+        if (arrowLeft) {
+            arrowLeft.addEventListener('click', () => this.moveCameraLeft());
+        }
+        if (arrowRight) {
+            arrowRight.addEventListener('click', () => this.moveCameraRight());
+        }
 
         this.render();
     }
@@ -164,7 +224,7 @@ class Viewer {
 
     setRenderer(options = {}) {
         this.renderer = new THREE.WebGLRenderer(options);
-        this.canvas.style.filter = 'grayscale(100%)';
+        // this.canvas.style.filter = 'grayscale(100%)';
 
         // Crée notre caméra
         // PerspectiveCamera( fov, aspect-ratio, near, far )
@@ -228,6 +288,44 @@ class Viewer {
         this.renderer.setPixelRatio(settings.sizes.dpr);
 
         this.render();
+    }
+
+    moveCameraLeft() {
+        this.currentTargetIndex = (this.currentTargetIndex - 1 + this.cameraTargets.length) % this.cameraTargets.length;
+        const targetPos = this.cameraTargets[this.currentTargetIndex].position;
+        const lookPos = this.lookTargets[this.currentTargetIndex];
+        gsap.to(this.camera.position, {
+            x: targetPos.x,
+            y: targetPos.y,
+            z: targetPos.z,
+            duration: 1,
+            onUpdate: () => this.render()
+        });
+        gsap.to(this.controls.target, {
+            x: lookPos.x,
+            y: lookPos.y,
+            z: lookPos.z,
+            duration: 1
+        });
+    }
+
+    moveCameraRight() {
+        this.currentTargetIndex = (this.currentTargetIndex + 1) % this.cameraTargets.length;
+        const targetPos = this.cameraTargets[this.currentTargetIndex].position;
+        const lookPos = this.lookTargets[this.currentTargetIndex];
+        gsap.to(this.camera.position, {
+            x: targetPos.x,
+            y: targetPos.y,
+            z: targetPos.z,
+            duration: 1,
+            onUpdate: () => this.render()
+        });
+        gsap.to(this.controls.target, {
+            x: lookPos.x,
+            y: lookPos.y,
+            z: lookPos.z,
+            duration: 1
+        });
     }
 }
 
