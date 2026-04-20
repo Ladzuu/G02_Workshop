@@ -13,6 +13,10 @@ const textInfos = {
     armoir: "J'ai bien fini par croire qu'un monstre s'y cachait. Je n'osais pas y toucher, de peur de le réveiller.",
     skate: "Ce vieux skate... Il était comme neuf à l'époque. Maintenant, il ne roule sûrement plus.",
     boitePinceaux: "De nombreux dessins se sont retrouvés sur les murs grâce à cette petite boîte. J'en accrochais encore et encore...",
+    avatar1: "",
+    avatar2: "",
+    avatar3: "",
+    avatar4: "",
     cadre: ""
 };
 
