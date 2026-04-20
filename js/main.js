@@ -35734,6 +35734,262 @@ class AnimationMixer extends EventDispatcher {
 
 }
 
+const _matrix = /*@__PURE__*/ new Matrix4();
+
+/**
+ * This class is designed to assist with raycasting. Raycasting is used for
+ * mouse picking (working out what objects in the 3d space the mouse is over)
+ * amongst other things.
+ */
+class Raycaster {
+
+	/**
+	 * Constructs a new raycaster.
+	 *
+	 * @param {Vector3} origin - The origin vector where the ray casts from.
+	 * @param {Vector3} direction - The (normalized) direction vector that gives direction to the ray.
+	 * @param {number} [near=0] - All results returned are further away than near. Near can't be negative.
+	 * @param {number} [far=Infinity] - All results returned are closer than far. Far can't be lower than near.
+	 */
+	constructor( origin, direction, near = 0, far = Infinity ) {
+
+		/**
+		 * The ray used for raycasting.
+		 *
+		 * @type {Ray}
+		 */
+		this.ray = new Ray( origin, direction );
+
+		/**
+		 * All results returned are further away than near. Near can't be negative.
+		 *
+		 * @type {number}
+		 * @default 0
+		 */
+		this.near = near;
+
+		/**
+		 * All results returned are closer than far. Far can't be lower than near.
+		 *
+		 * @type {number}
+		 * @default Infinity
+		 */
+		this.far = far;
+
+		/**
+		 * The camera to use when raycasting against view-dependent objects such as
+		 * billboarded objects like sprites. This field can be set manually or
+		 * is set when calling `setFromCamera()`.
+		 *
+		 * @type {?Camera}
+		 * @default null
+		 */
+		this.camera = null;
+
+		/**
+		 * Allows to selectively ignore 3D objects when performing intersection tests.
+		 * The following code example ensures that only 3D objects on layer `1` will be
+		 * honored by raycaster.
+		 * ```js
+		 * raycaster.layers.set( 1 );
+		 * object.layers.enable( 1 );
+		 * ```
+		 *
+		 * @type {Layers}
+		 */
+		this.layers = new Layers();
+
+
+		/**
+		 * A parameter object that configures the raycasting. It has the structure:
+		 *
+		 * ```
+		 * {
+		 * 	Mesh: {},
+		 * 	Line: { threshold: 1 },
+		 * 	LOD: {},
+		 * 	Points: { threshold: 1 },
+		 * 	Sprite: {}
+		 * }
+		 * ```
+		 * Where `threshold` is the precision of the raycaster when intersecting objects, in world units.
+		 *
+		 * @type {Object}
+		 */
+		this.params = {
+			Mesh: {},
+			Line: { threshold: 1 },
+			LOD: {},
+			Points: { threshold: 1 },
+			Sprite: {}
+		};
+
+	}
+
+	/**
+	 * Updates the ray with a new origin and direction by copying the values from the arguments.
+	 *
+	 * @param {Vector3} origin - The origin vector where the ray casts from.
+	 * @param {Vector3} direction - The (normalized) direction vector that gives direction to the ray.
+	 */
+	set( origin, direction ) {
+
+		// direction is assumed to be normalized (for accurate distance calculations)
+
+		this.ray.set( origin, direction );
+
+	}
+
+	/**
+	 * Uses the given coordinates and camera to compute a new origin and direction for the internal ray.
+	 *
+	 * @param {Vector2} coords - 2D coordinates of the mouse, in normalized device coordinates (NDC).
+	 * X and Y components should be between `-1` and `1`.
+	 * @param {Camera} camera - The camera from which the ray should originate.
+	 */
+	setFromCamera( coords, camera ) {
+
+		if ( camera.isPerspectiveCamera ) {
+
+			this.ray.origin.setFromMatrixPosition( camera.matrixWorld );
+			this.ray.direction.set( coords.x, coords.y, 0.5 ).unproject( camera ).sub( this.ray.origin ).normalize();
+			this.camera = camera;
+
+		} else if ( camera.isOrthographicCamera ) {
+
+			this.ray.origin.set( coords.x, coords.y, ( camera.near + camera.far ) / ( camera.near - camera.far ) ).unproject( camera ); // set origin in plane of camera
+			this.ray.direction.set( 0, 0, -1 ).transformDirection( camera.matrixWorld );
+			this.camera = camera;
+
+		} else {
+
+			error( 'Raycaster: Unsupported camera type: ' + camera.type );
+
+		}
+
+	}
+
+	/**
+	 * Uses the given WebXR controller to compute a new origin and direction for the internal ray.
+	 *
+	 * @param {WebXRController} controller - The controller to copy the position and direction from.
+	 * @return {Raycaster} A reference to this raycaster.
+	 */
+	setFromXRController( controller ) {
+
+		_matrix.identity().extractRotation( controller.matrixWorld );
+
+		this.ray.origin.setFromMatrixPosition( controller.matrixWorld );
+		this.ray.direction.set( 0, 0, -1 ).applyMatrix4( _matrix );
+
+		return this;
+
+	}
+
+	/**
+	 * The intersection point of a raycaster intersection test.
+	 * @typedef {Object} Raycaster~Intersection
+	 * @property {number} distance - The distance from the ray's origin to the intersection point.
+	 * @property {number} distanceToRay -  Some 3D objects e.g. {@link Points} provide the distance of the
+	 * intersection to the nearest point on the ray. For other objects it will be `undefined`.
+	 * @property {Vector3} point - The intersection point, in world coordinates.
+	 * @property {Object} face - The face that has been intersected.
+	 * @property {number} faceIndex - The face index.
+	 * @property {Object3D} object - The 3D object that has been intersected.
+	 * @property {Vector2} uv - U,V coordinates at point of intersection.
+	 * @property {Vector2} uv1 - Second set of U,V coordinates at point of intersection.
+	 * @property {Vector3} normal - Interpolated normal vector at point of intersection.
+	 * @property {number} instanceId - The index number of the instance where the ray
+	 * intersects the {@link InstancedMesh}.
+	 */
+
+	/**
+	 * Checks all intersection between the ray and the object with or without the
+	 * descendants. Intersections are returned sorted by distance, closest first.
+	 *
+	 * `Raycaster` delegates to the `raycast()` method of the passed 3D object, when
+	 * evaluating whether the ray intersects the object or not. This allows meshes to respond
+	 * differently to ray casting than lines or points.
+	 *
+	 * Note that for meshes, faces must be pointed towards the origin of the ray in order
+	 * to be detected; intersections of the ray passing through the back of a face will not
+	 * be detected. To raycast against both faces of an object, you'll want to set  {@link Material#side}
+	 * to `THREE.DoubleSide`.
+	 *
+	 * @param {Object3D} object - The 3D object to check for intersection with the ray.
+	 * @param {boolean} [recursive=true] - If set to `true`, it also checks all descendants.
+	 * Otherwise it only checks intersection with the object.
+	 * @param {Array<Raycaster~Intersection>} [intersects=[]] The target array that holds the result of the method.
+	 * @return {Array<Raycaster~Intersection>} An array holding the intersection points.
+	 */
+	intersectObject( object, recursive = true, intersects = [] ) {
+
+		intersect( object, this, intersects, recursive );
+
+		intersects.sort( ascSort );
+
+		return intersects;
+
+	}
+
+	/**
+	 * Checks all intersection between the ray and the objects with or without
+	 * the descendants. Intersections are returned sorted by distance, closest first.
+	 *
+	 * @param {Array<Object3D>} objects - The 3D objects to check for intersection with the ray.
+	 * @param {boolean} [recursive=true] - If set to `true`, it also checks all descendants.
+	 * Otherwise it only checks intersection with the object.
+	 * @param {Array<Raycaster~Intersection>} [intersects=[]] The target array that holds the result of the method.
+	 * @return {Array<Raycaster~Intersection>} An array holding the intersection points.
+	 */
+	intersectObjects( objects, recursive = true, intersects = [] ) {
+
+		for ( let i = 0, l = objects.length; i < l; i ++ ) {
+
+			intersect( objects[ i ], this, intersects, recursive );
+
+		}
+
+		intersects.sort( ascSort );
+
+		return intersects;
+
+	}
+
+}
+
+function ascSort( a, b ) {
+
+	return a.distance - b.distance;
+
+}
+
+function intersect( object, raycaster, intersects, recursive ) {
+
+	let propagate = true;
+
+	if ( object.layers.test( raycaster.layers ) ) {
+
+		const result = object.raycast( raycaster, intersects );
+
+		if ( result === false ) propagate = false;
+
+	}
+
+	if ( propagate === true && recursive === true ) {
+
+		const children = object.children;
+
+		for ( let i = 0, l = children.length; i < l; i ++ ) {
+
+			intersect( children[ i ], raycaster, intersects, true );
+
+		}
+
+	}
+
+}
+
 /**
  * This class can be used to represent points in 3D space as
  * [Spherical coordinates](https://en.wikipedia.org/wiki/Spherical_coordinate_system).
@@ -69211,6 +69467,18 @@ gsapWithCSS.core.Tween;
 
 const body = document.querySelector('body');
 
+const textInfos = {
+    lampeFusee: "Je ne me souvenais plus de sa couleur exacte. Sa lumière rendait la pièce plus grande, moins silencieuse.",
+    petitTrain: "Il a l'air encore intact. J'ai dû le réparer plusieurs fois. Il a l'air figé dans le temps.",
+    lecteurCd: "Le volume se réglait mal. Un rien le rendait trop fort. Aujourd'hui, il doit être cassé pour de bon.",
+    armoir: "J'ai bien fini par croire qu'un monstre s'y cachait. Je n'osais pas y toucher, de peur de le réveiller.",
+    skate: "Ce vieux skate... Il était comme neuf à l'époque. Maintenant, il ne roule sûrement plus.",
+    boitePinceaux: "De nombreux dessins se sont retrouvés sur les murs grâce à cette petite boîte. J'en accrochais encore et encore...",
+    cadre: ""
+};
+
+const textOverlay = document.querySelector('.textOverlay');
+
 // Chargement des modèles
 const models = {
     exterieur: '/models/outside/G2_exterieur_baked.gltf',
@@ -69265,6 +69533,10 @@ const settings = {
     wrapper: document.querySelector(".js-canvas-wrapper"),
     canvas: document.querySelector(".js-canvas-3d"),
     sizes: {},
+    raycaster: new Raycaster(),
+    mousePointer: new Vector2(),
+    interactiveObjects: ['lampeFusee', 'petitTrain', 'lecteurCd', 'armoir', 'skate', 'boitePinceaux', 'cadre'],
+    clickedObjects: new Set()
 };
 
 const threejsOptions = {
@@ -69332,6 +69604,7 @@ class Viewer {
 
         interiorModelItems.forEach(item => {
             const model = models[item].scene;
+            model.name = item;
             model.rotation.y = MathUtils.degToRad(270);
             this.scene.add(model);
             this.interiorModels.push(model);
@@ -69354,39 +69627,39 @@ class Viewer {
         const targetLampe = new Mesh(targetsGeometry, targetsMaterial);
         const targetTrain = new Mesh(targetsGeometry, targetsMaterial);
         const targetLecteur = new Mesh(targetsGeometry, targetsMaterial);
-        const targetPoster = new Mesh(targetsGeometry, targetsMaterial);
+        const targetArmoire = new Mesh(targetsGeometry, targetsMaterial);
         const targetSkate = new Mesh(targetsGeometry, targetsMaterial);
         const targetBoite = new Mesh(targetsGeometry, targetsMaterial);
         targetLampe.position.set(-1.5, -0.75, 0.45);
         targetTrain.position.set(-1.5, -0.15, 0.45);
         targetLecteur.position.set(-1.45, -0.6, -0.45);
-        targetPoster.position.set(1.6, -0.4, -0.55);
+        targetArmoire.position.set(1.6, -0.4, -1.5);
         targetSkate.position.set(0.8, -1.4, -1.4);
         targetBoite.position.set(-1.45, -0.6, -1.2);
 
-        this.scene.add(targetLampe, targetTrain, targetLecteur, targetPoster, targetSkate, targetBoite);
+        this.scene.add(targetLampe, targetTrain, targetLecteur, targetArmoire, targetSkate, targetBoite);
 
         // Targets position des cameras
-        const targetsCamMaterial = new MeshStandardMaterial({ color: 0xFF7E46 });
+        const targetsCamMaterial = new MeshStandardMaterial({ color: 0xFF7E46, visible: false });
 
         const targetCamLampe = new Mesh(targetsGeometry, targetsCamMaterial);
         const targetCamTrain = new Mesh(targetsGeometry, targetsCamMaterial);
         const targetCamLecteur = new Mesh(targetsGeometry, targetsCamMaterial);
-        const targetCamPoster = new Mesh(targetsGeometry, targetsCamMaterial);
+        const targetCamArmoire = new Mesh(targetsGeometry, targetsCamMaterial);
         const targetCamSkate = new Mesh(targetsGeometry, targetsCamMaterial);
         const targetCamBoite = new Mesh(targetsGeometry, targetsCamMaterial);
         targetCamLampe.position.set(0, -0.75, 0.45);
         targetCamTrain.position.set(0, -0.15, 0.45);
         targetCamLecteur.position.set(0, -0.6, -0.2);
-        targetCamPoster.position.set(0, -0.4, -0.55);
+        targetCamArmoire.position.set(-1.25, 0.2, -1);
         targetCamSkate.position.set(0, -0.5, -0.5);
         targetCamBoite.position.set(-0.5, 0.5, -1);
 
-        this.scene.add(targetCamLampe, targetCamTrain, targetCamLecteur, targetCamBoite, targetCamPoster, targetCamSkate);
+        this.scene.add(targetCamLampe, targetCamTrain, targetCamLecteur, targetCamBoite, targetCamArmoire, targetCamSkate);
 
-        this.cameraTargets = [targetCamLampe, targetCamTrain, targetCamLecteur, targetCamPoster, targetCamSkate, targetCamBoite];
+        this.cameraTargets = [targetCamLampe, targetCamTrain, targetCamLecteur, targetCamArmoire, targetCamSkate, targetCamBoite];
         this.currentTargetIndex = 0;
-        this.lookTargets = [targetLampe.position, targetTrain.position, targetLecteur.position, targetPoster.position, targetSkate.position, targetBoite.position];
+        this.lookTargets = [targetLampe.position, targetTrain.position, targetLecteur.position, targetArmoire.position, targetSkate.position, targetBoite.position];
 
         // Mettre à jour le mixer pour la nouvelle scène
         this.mixer = new AnimationMixer(this.scene);
@@ -69405,6 +69678,9 @@ class Viewer {
         if (arrowRight) {
             arrowRight.addEventListener('click', () => this.moveCameraRight());
         }
+
+        settings.clickedObjects.clear();
+        this.canvas.style.filter = 'grayscale(100%)';
 
         this.render();
     }
@@ -69428,7 +69704,7 @@ class Viewer {
 
     setRenderer(options = {}) {
         this.renderer = new WebGLRenderer(options);
-        // this.canvas.style.filter = 'grayscale(100%)';
+        this.canvas.style.filter = 'grayscale(100%)';
 
         // Crée notre caméra
         // PerspectiveCamera( fov, aspect-ratio, near, far )
@@ -69471,29 +69747,6 @@ class Viewer {
         this.populate();
     }
 
-    resize() {
-        // Mettre à jour nos settings
-        settings.sizes.w = settings.wrapper.clientWidth;
-        settings.sizes.h = settings.wrapper.clientHeight;
-
-        // Limite la densité de pixel à 2, pour éviter
-        // des problèmes de performances sur des écrans
-        // à plus haute densité de pixel.
-        settings.sizes.dpr = Math.min(window.devicePixelRatio, 2);
-
-        settings.canvas.style.aspetRatio = `${settings.sizes.w}/${settings.sizes.h}`;
-
-        // Mettre à jour la camera
-        this.camera.aspect = settings.sizes.w / settings.sizes.h;
-        this.camera.updateProjectionMatrix();
-
-        // Mettre à jour le moteur de rendu
-        this.renderer.setSize(settings.sizes.w, settings.sizes.h);
-        this.renderer.setPixelRatio(settings.sizes.dpr);
-
-        this.render();
-    }
-
     moveCameraLeft() {
         this.currentTargetIndex = (this.currentTargetIndex - 1 + this.cameraTargets.length) % this.cameraTargets.length;
         const targetPos = this.cameraTargets[this.currentTargetIndex].position;
@@ -69531,6 +69784,29 @@ class Viewer {
             duration: 1
         });
     }
+
+    resize() {
+        // Mettre à jour nos settings
+        settings.sizes.w = settings.wrapper.clientWidth;
+        settings.sizes.h = settings.wrapper.clientHeight;
+
+        // Limite la densité de pixel à 2, pour éviter
+        // des problèmes de performances sur des écrans
+        // à plus haute densité de pixel.
+        settings.sizes.dpr = Math.min(window.devicePixelRatio, 2);
+
+        settings.canvas.style.aspetRatio = `${settings.sizes.w}/${settings.sizes.h}`;
+
+        // Mettre à jour la camera
+        this.camera.aspect = settings.sizes.w / settings.sizes.h;
+        this.camera.updateProjectionMatrix();
+
+        // Mettre à jour le moteur de rendu
+        this.renderer.setSize(settings.sizes.w, settings.sizes.h);
+        this.renderer.setPixelRatio(settings.sizes.dpr);
+
+        this.render();
+    }
 }
 
 const myViewer = new Viewer(threejsOptions);
@@ -69542,9 +69818,74 @@ window.addEventListener("resize", () => {
     myViewer.resize();
 });
 
-const btnEntry = document.querySelector(".btnEntry");
-btnEntry.addEventListener("click", () => {
-    myViewer.switchInterior();
+const raycasting = () => {
+    let isHoveringInteractive = false;
+    settings.raycaster.setFromCamera( settings.mousePointer, myViewer.camera );
+    const intersects = settings.raycaster.intersectObjects( myViewer.scene.children, true );
 
-    btnEntry.remove();
-});
+    if (intersects.length > 0) {
+        intersects[0].object.traverseAncestors((ancestor) => {
+            if (settings.interactiveObjects.includes(ancestor.name)) {
+                isHoveringInteractive = true;
+            }
+        });
+    }
+
+    body.style.cursor = isHoveringInteractive ? 'pointer' : 'default';
+
+    myViewer.render();
+};
+
+const updateMousePointer = (e) => {
+    const x = (e.clientX / settings.sizes.w) * 2 - 1;
+    const y = (e.clientY / settings.sizes.h) * 2 - 1;
+    settings.mousePointer.x = x;
+    settings.mousePointer.y = -y;
+
+    raycasting();
+    //   console.log(settings.mousePointer);
+};
+
+window.addEventListener('mousemove', updateMousePointer);
+
+const btnEntry = document.querySelector(".btnEntry");
+if (btnEntry) {
+    btnEntry.addEventListener("click", () => {
+        body.classList.add('sceneTransition');
+        myViewer.switchInterior();
+        btnEntry.remove();
+    });
+}
+
+const onElementClick = (event) => {
+    settings.raycaster.setFromCamera( settings.mousePointer, myViewer.camera );
+
+    const intersects = settings.raycaster.intersectObjects( myViewer.scene.children, true );
+
+    if (intersects.length > 0) {
+        let object = intersects[0].object;
+
+        let modelName = null;
+        object.traverseAncestors((ancestor) => {
+            if (settings.interactiveObjects.includes(ancestor.name)) {
+                modelName = ancestor.name;
+            }
+        });
+
+        if (modelName && textInfos[modelName]) {
+            textOverlay.textContent = textInfos[modelName];
+            textOverlay.classList.add('textVisible');
+            setTimeout(() => {
+                textOverlay.classList.remove('textVisible');
+            }, 5000);
+        }
+
+        if (modelName && modelName !== 'cadre' && !settings.clickedObjects.has(modelName)) {
+            settings.clickedObjects.add(modelName);
+            const grayscale = 100 - (settings.clickedObjects.size / 6 * 100);
+            myViewer.canvas.style.filter = `grayscale(${grayscale}%)`;
+        }
+    }
+};
+
+window.addEventListener('click', onElementClick);
